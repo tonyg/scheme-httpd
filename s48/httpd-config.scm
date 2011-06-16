@@ -79,29 +79,15 @@
   (files "../portable/httpd.scm"))
 
 (define-structure httpd-servlet
-  (export make-httpd-servlet-handler
-
-	  make-servlet-index
-	  servlet-index?
-	  reset-servlet-index!
-	  publish-pattern!
-	  invoke-handler
-
-	  make-publication-pattern
-	  instantiate-publication-pattern
-	  extract-publication-pattern-binding
-
-	  (define-publication-patterns :syntax)
-	  (binding-let :syntax)
-	  (publication-pattern-handler :syntax)
-	  (publish-pattern :syntax))
+  (export (dispatch-rules :syntax)
+	  (dispatch-case :syntax)
+	  (dispatch-url :syntax)
+	  (binding-let :syntax))
   (open scheme)
 
-  (open srfi-2)
-  (open srfi-9)
+  (open srfi-1)
   (open srfi-13)
   (open srfi-23)
-  (open srfi-39)
 
   (open pp)
 

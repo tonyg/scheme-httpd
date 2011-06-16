@@ -1,7 +1,6 @@
 ;; Toy HTTP daemon
 ;;
-;; Copyright (c) 2008, 2011 Tony Garnock-Jones <tonygarnockjones@gmail.com>
-;; Copyright (c) 2008 LShift Ltd. <query@lshift.net>
+;; Copyright (c) 2011 Tony Garnock-Jones <tonygarnockjones@gmail.com>
 ;; 
 ;; Permission is hereby granted, free of charge, to any person
 ;; obtaining a copy of this software and associated documentation
@@ -23,17 +22,26 @@
 ;; CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 ;; SOFTWARE.
 
-(define-record-type <servlet-index>
-  (make-servlet-index* patterns)
-  servlet-index?
-  (patterns servlet-index-patterns set-servlet-index-patterns!))
+(define-syntax dispatch-rules
+  (syntax-rules ()
+    ((_ (pattern function) ...)
+     (let ((table (list (list 'pattern function) ...)))
+       (values (dispatch-case* table)
+	       (dispatch-url* table))))))
 
-(define-record-type <publication-pattern>
-  (make-publication-pattern* template)
-  publication-pattern?
-  (template publication-pattern-template))
+(define-syntax dispatch-case
+  (syntax-rules ()
+    ((_ (pattern function) ...)
+     (let ((table (list (list 'pattern function) ...)))
+       (dispatch-case* table)))))
 
-(define (make-httpd-servlet-handler current-request-parameter index)
+(define-syntax dispatch-url
+  (syntax-rules ()
+    ((_ (pattern function) ...)
+     (let ((table (list (list 'pattern function) ...)))
+       (dispatch-url* table)))))
+
+(define (dispatch-case* table)
   (lambda (req)
     (let* ((path (http-request-parsed-path req))
 	   (headers (http-request-headers req))
@@ -46,92 +54,120 @@
 		    (current-output-port)
 		    0)
       (newline)
-      (parameterize ((current-request-parameter req))
-	(let ((response (or (invoke-handler index req pieces)
-			    (make-http-response 404 "Not Found" '((content-type "text/html"))
-						(list
-						 "<html><head>"
-						 "<title>Page Not Found</title>"
-						 "</head><body>"
-						 "<h1>404: Page Not Found</h1>"
-						 "<p>We can't find that page.</p>"
-						 "</body></html>")))))
-	  ;;(write (http-body->string (http-response-body response)))(newline)
-	  response)))))
+      (let ((response (or (invoke-handler table req pieces)
+			  (make-http-response 404 "Not Found" '((content-type "text/html"))
+					      (list
+					       "<html><head>"
+					       "<title>Page Not Found</title>"
+					       "</head><body>"
+					       "<h1>404: Page Not Found</h1>"
+					       "<p>We can't find that page.</p>"
+					       "</body></html>")))))
+	;;(write (http-body->string (http-response-body response)))(newline)
+	response))))
 
-(define (make-servlet-index)
-  (make-servlet-index* '()))
+(define (dispatch-url* table)
+  (lambda (proc . bindings)
+    (let ((pattern (find (lambda (cell) (eq? (cadr cell) proc)) table)))
+      (when (not pattern)
+	(error `("Cannot find URL corresponding to procedure" ,proc)))
+      (string-concatenate
+       (cons "/" (interleave-element "/" (render-pattern (car pattern) bindings)))))))
 
-(define (reset-servlet-index! index)
-  (set-servlet-index-patterns! index '()))
-
-(define (publication-pattern-binding-element? element)
-  (and (pair? element) (eq? (car element) 'unquote)))
-
-(define (publication-pattern-binding-name binding) (cadr binding))
-
-(define (parse-publication-pattern-template template)
-  (map (lambda (element)
-	 (cond
-	  ((string? element) element)
-	  ((symbol? element) (symbol->string element))
-	  ((publication-pattern-binding-element? element) element)
-	  (else (error `("Illegal pattern component in publish-pattern" ,element)))))
-       template))
-
-(define (make-publication-pattern template)
-  (make-publication-pattern* (parse-publication-pattern-template template)))
-
-(define (publish-pattern! index pattern handler)
-  (when (not (publication-pattern? pattern))
-    (error `("publish-pattern! expects a publication-pattern" ,pattern)))
-  (set-servlet-index-patterns! index
-			       (cons (cons pattern handler)
-				     (servlet-index-patterns index))))
-
-(define (invoke-handler index request value)
-  (let search ((patterns (servlet-index-patterns index)))
+(define (invoke-handler patterns request pieces)
+  (let search ((patterns patterns))
     (if (null? patterns)
 	#f
-	(let ((bindings (match-publication-pattern (publication-pattern-template (caar patterns))
-						   value)))
+	(let ((bindings (match-pattern (caar patterns) pieces)))
 	  (if bindings
-	      ((cdar patterns) request bindings)
+	      (apply (cadar patterns) request bindings)
 	      (search (cdr patterns)))))))
 
-(define (match-publication-pattern template value)
-  (if (or (null? template) (null? value))
-      (and (null? template) (null? value) '())
-      (if (publication-pattern-binding-element? (car template))
-	  (and-let* ((tail-bindings (match-publication-pattern (cdr template) (cdr value))))
-	    (cons (list (publication-pattern-binding-name (car template))
-			(car value))
-		  tail-bindings))
-	  (and (equal? (car template) (car value))
-	       (match-publication-pattern (cdr template) (cdr value))))))
+(define (pattern-starts-with-repeated-piece? pattern)
+  (and (pair? (cdr pattern))
+       (eq? (cadr pattern) '...)))
 
-(define (instantiate-publication-pattern pattern bindings)
-  (let* ((template (publication-pattern-template pattern))
-	 (parts (map (lambda (element)
-		       (cond ((string? element) element)
-			     ((symbol? element) (symbol->string element))
-			     ((publication-pattern-binding-element? element)
-			      (cond
-			       ((assq (publication-pattern-binding-name element)
-				      bindings) => cadr)
-			       (else (error `("Missing binding in instantiation"
-					      ,template
-					      ,element
-					      ,bindings)))))))
-		     template)))
-    (string-concatenate (cons "/" (interleave-element "/" parts)))))
+(define (match-pattern pattern pieces)
+  (let loop ((bindings '())
+	     (pattern pattern)
+	     (pieces pieces))
+    (cond
+     ((and (null? pattern) (null? pieces)) (reverse bindings))
+     ((or  (null? pattern) (null? pieces)) #f)
+     ((equal? (car pattern) "") ;; skip empty pieces, for compatibility (?) with racket
+      (loop bindings (cdr pattern) pieces))
+     ((pattern-starts-with-repeated-piece? pattern)
+      (let accumulate-list ((vals '()) (pieces pieces))
+	(match1 vals (car pattern) (car pieces)
+		(lambda (new-vals) (accumulate-list new-vals (cdr pieces)))
+		(lambda () (loop (cons (reverse vals) bindings) (cddr pattern) pieces)))))
+     (else
+      (match1 bindings (car pattern) (car pieces)
+	      (lambda (new-bindings) (loop new-bindings (cdr pattern) (cdr pieces)))
+	      (lambda () #f))))))
 
-(define-syntax define-publication-patterns
-  (syntax-rules ()
-    ((_ (name template) ...)
-     (begin (define name (make-publication-pattern 'template)) ...))))
+(define (match-number str fk sk)
+  (let ((v (string->number str)))
+    (if v
+	(sk v)
+	(fk))))
 
-(define (extract-publication-pattern-binding name bindings)
+(define (match1 bindings pat val sk fk)
+  (cond
+   ((equal? pat val) (sk bindings))
+   ((equal? pat '(string-arg)) (sk (cons val bindings)))
+   ((equal? pat '(symbol-arg)) (sk (cons (string->symbol val) bindings)))
+   ((equal? pat '(number-arg))
+    (match-number val fk (lambda (v) (sk (cons v bindings)))))
+   ((equal? pat '(real-arg))
+    (match-number val fk (lambda (v) (sk (cons (real-part v) bindings)))))
+   ((equal? pat '(integer-arg))
+    (match-number val fk (lambda (v)
+			   (sk (cons (inexact->exact (truncate (real-part v))) bindings)))))
+   ((string? pat) (fk))
+   (else (error `("Invalid dispatch-pattern piece" ,pat)))))
+
+(define (render-pattern pattern0 bindings0)
+  (let loop ((pieces '())
+	     (pattern pattern0)
+	     (bindings bindings0))
+    (cond
+     ((null? pattern)
+      (if (null? bindings)
+	  (reverse pieces)
+	  (error `("Too many arguments to pattern" ,pattern0 ,bindings0))))
+     ((equal? (car pattern) "") ;; skip empty pieces, as above
+      (loop pieces (cdr pattern) bindings))
+     ((pattern-starts-with-repeated-piece? pattern)
+      (when (not (list? (car bindings)))
+	(error `("Expected repeated value" ,(car pattern) ,(car bindings))))
+      (let flatten ((vals (car bindings)) (pieces pieces))
+	(if (null? vals)
+	    (loop pieces (cddr pattern) (cdr bindings))
+	    (render1 pieces (car pattern) vals
+		     (lambda (new-pieces new-vals) (flatten new-vals new-pieces))
+		     (lambda () (error `("Could not render" ,pattern0 ,bindings0)))))))
+     (else
+      (render1 pieces (car pattern) bindings
+	       (lambda (new-pieces new-bindings) (loop new-pieces (cdr pattern) new-bindings))
+	       (lambda () (error `("Could not render" ,pattern0 ,bindings0))))))))
+
+(define (render1 pieces pat bindings sk fk)
+  (if (string? pat)
+      (sk (cons pat pieces) bindings)
+      (let ((val (car bindings))
+	    (proceed (lambda (new-piece)
+		       (sk (cons new-piece pieces) (cdr bindings)))))
+	(cond
+	 ((equal? pat '(string-arg)) (proceed val))
+	 ((equal? pat '(symbol-arg)) (proceed (symbol->string val)))
+	 ((equal? pat '(number-arg)) (proceed (number->string val)))
+	 ((equal? pat '(real-arg)) (proceed (number->string (real-part val))))
+	 ((equal? pat '(integer-arg))
+	  (proceed (number->string (inexact->exact (truncate (real-part val))))))
+	 (else (error `("Invalid dispatch-pattern piece" ,pat)))))))
+
+(define (extract-binding name bindings)
   (cond
    ((assq name bindings) => cadr)
    (else (error `("Missing binding"
@@ -142,18 +178,5 @@
   (syntax-rules ()
     ((_ bindings (name ...) body ...)
      (let ((temp bindings))
-       (let ((name (extract-publication-pattern-binding 'name temp)) ...)
+       (let ((name (extract-binding 'name temp)) ...)
 	 body ...)))))
-
-(define-syntax publication-pattern-handler
-  (syntax-rules ()
-    ((_ (name ...) body ...)
-     (lambda (request bindings)
-       (binding-let bindings (name ...) body ...)))))
-
-(define-syntax publish-pattern
-  (syntax-rules ()
-    ((_ index pattern (name ...) body ...)
-     (publish-pattern! index
-		       pattern
-		       (publication-pattern-handler (name ...) body ...)))))

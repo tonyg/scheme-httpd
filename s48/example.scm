@@ -9,6 +9,7 @@ cd $(dirname "$0"); tail -n +3 $(basename "$0") | scheme48; exit
 ,open httpd-servlet
 ,open threads
 ,open xxexpr
+,open pp
 
 ;; Parameters:
 ,open srfi-39
