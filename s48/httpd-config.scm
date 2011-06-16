@@ -18,8 +18,13 @@
   (files "../portable/httpd-utils.scm"))
 
 (define-structure httpd
-  (export httpd
-	  stop-httpd
+  (export make-http-daemon
+	  http-daemon?
+	  http-daemon-port-number
+	  http-daemon-running?
+	  stop-http-daemon
+	  run-http-daemon
+	  spawn-http-daemon
 
 	  make-http-request
 	  http-request?

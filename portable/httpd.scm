@@ -50,6 +50,13 @@
   (headers http-response-headers set-http-response-headers!)
   (body http-response-body set-http-response-body!))
 
+(define-record-type <http-daemon>
+  (make-http-daemon* port-number server-socket handler)
+  http-daemon?
+  (port-number http-daemon-port-number)
+  (server-socket http-daemon-server-socket set-http-daemon-server-socket!)
+  (handler http-daemon-handler))
+
 (define (alist-push alist key value)
   (call-with-values (lambda () (break (lambda (elt) (eq? (car elt) key)) alist))
     (lambda (head tail)
@@ -193,29 +200,56 @@
 	(escape (handler exn)))
       thunk))))
 
-(define (httpd port-number handler)
-  (let ((server-socket (open-socket port-number)))
-    (define (accept-loop)
-      (call-with-values (lambda () (socket-accept server-socket))
-	(lambda (in out)
-	  (spawn
-	   (lambda ()
-	     (on-exception
-	      (lambda (exn)
-		((dump-error-and (complain-and-close exn in out)) exn))
-	      (lambda ()
-		(do-connection in out handler)))))
-	  (accept-loop))))
-    (spawn
-     (lambda ()
-       (on-exception
-	(lambda (exn)
-	  ((dump-error-and (lambda () (close-socket server-socket))) exn))
-	accept-loop)))
-    (cons 'httpd server-socket)))
+(define (http-daemon-running? d)
+  (not (eq? #f (http-daemon-server-socket d))))
 
-(define (stop-httpd r)
-  (if (not (eq? (car r) 'httpd))
-      (error `("Cannot stop-httpd non-HTTPD" ,r))
-      (close-socket (cdr r)))
-  #t)
+(define (run-http-daemon d)
+  (when (http-daemon-running? d)
+    (error "Cannot run already-running daemon"))
+  (let ((server-socket (open-socket (http-daemon-port-number d))))
+    (set-http-daemon-server-socket! d server-socket)
+    (let accept-loop ()
+      (call-with-current-continuation
+       (lambda (escape)
+	 (call-with-values (lambda ()
+			     (on-exception
+			      (lambda (exn)
+				(set-http-daemon-server-socket! d #f)
+				(escape #t))
+			      (lambda () (socket-accept server-socket))))
+	   (lambda (in out)
+	     (spawn
+	      (lambda ()
+		(on-exception
+		 (lambda (exn)
+		   ((dump-error-and (complain-and-close exn in out)) exn))
+		 (lambda ()
+		   (do-connection in
+				  out
+				  (http-daemon-handler d))))))
+	     (accept-loop))))))))
+
+(define (spawn-http-daemon d)
+  (spawn
+   (lambda ()
+     (on-exception
+      (lambda (exn)
+	((dump-error-and (lambda ()
+			   (on-exception (lambda (exn) 'ignore)
+					 (lambda () (stop-http-daemon d)))))
+	 exn))
+      (lambda ()
+	(run-http-daemon d))))))
+
+(define (stop-http-daemon d)
+  (let ((s (http-daemon-server-socket d)))
+    (when s
+      (close-socket s))
+    #t))
+
+(define (make-http-daemon port-number handler . maybe-and-start?)
+  (let* ((and-start? (and (pair? maybe-and-start?) (car maybe-and-start?)))
+	 (d (make-http-daemon* port-number #f handler)))
+    (when and-start?
+      (spawn-http-daemon d))
+    d))

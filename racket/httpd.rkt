@@ -8,9 +8,14 @@
 
 (require "httpd-utils.rkt")
 
-(provide httpd
-         stop-httpd
-         
+(provide make-http-daemon
+	 http-daemon?
+	 http-daemon-port-number
+	 http-daemon-running?
+	 stop-http-daemon
+	 run-http-daemon
+	 spawn-http-daemon
+
          make-http-request
          http-request?
          http-request-headers

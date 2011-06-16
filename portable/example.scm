@@ -13,14 +13,25 @@
 (publish-pattern index
     (make-publication-pattern '())
     ()
-  (respond "Test" `((p "See " (a ((href "/other")) "here") "."))))
+  (respond "Test"
+	   `((p "See "(a ((href "/other")) "here")".")
+	     (p "Alternatively, "(a ((href "/stop")) "stop")" the server."))))
 
 (publish-pattern index
     (make-publication-pattern '(other))
     ()
-  (respond "Other" `((p "Go " (a ((href "/")) "home") "."))))
+  (respond "Other"
+	   `((p "Go " (a ((href "/")) "home") "."))))
 
-(httpd 8000 (make-httpd-servlet-handler current-request index))
+(publish-pattern index
+    (make-publication-pattern '(stop))
+    ()
+  (stop-http-daemon daemon)
+  (respond "Stopped"
+	   `((p "It's stopped now."))))
 
-(do () (#f)
-  (sleep 1000))
+(define daemon
+  (make-http-daemon 8000
+		    (make-httpd-servlet-handler current-request index)))
+
+(run-http-daemon daemon)
