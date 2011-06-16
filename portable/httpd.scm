@@ -57,6 +57,9 @@
   (server-socket http-daemon-server-socket set-http-daemon-server-socket!)
   (handler http-daemon-handler))
 
+(define (http-request-body-string req)
+  (utf-8->string (http-request-body req) #f))
+
 (define (parse-path path)
   (apply (lambda (path-and-params . maybe-query)
 	   (apply (lambda (path . maybe-params)

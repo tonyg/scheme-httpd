@@ -24,6 +24,7 @@
          http-request-parsed-path
          http-request-http-version
          http-request-body
+	 http-request-body-string
          
          make-parsed-path
          parsed-path?
@@ -62,5 +63,7 @@
   (tcp-close listener))
 
 (define spawn thread)
+
+(define utf-8->string bytes->string/utf-8)
 
 (include "../portable/httpd.scm")

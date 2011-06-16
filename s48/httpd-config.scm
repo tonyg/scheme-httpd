@@ -39,6 +39,7 @@
 	  http-request-parsed-path
 	  http-request-http-version
 	  http-request-body
+	  http-request-body-string
 
 	  make-parsed-path
 	  parsed-path?

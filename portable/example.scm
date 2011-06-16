@@ -21,7 +21,23 @@
     (make-publication-pattern '(other))
     ()
   (respond "Other"
-	   `((p "Go " (a ((href "/")) "home") "."))))
+	   `((form ((action "/post-target")
+		    (method "POST"))
+		   (input ((name "foo") (value "bar"))) (br)
+		   (input ((name "zot") (value "quux"))) (br)
+		   (input ((type "submit") (value "Do it"))))
+	     (p "Go " (a ((href "/")) "home") "."))))
+
+(publish-pattern index
+    (make-publication-pattern '(post-target))
+    ()
+  (respond "Target"
+	   `((p "You posted:")
+	     (ul
+	      ,@(map (lambda (piece)
+		       `(li ,(symbol->string (car piece))" = ",@(cdr piece)))
+		     (parse-query (http-request-body-string (current-request)))))
+	     (p "Go " (a ((href "/")) "home") "."))))
 
 (publish-pattern index
     (make-publication-pattern '(stop))
