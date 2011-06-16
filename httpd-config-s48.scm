@@ -1,3 +1,12 @@
+(define-structure when
+  (export (when :syntax))
+  (open scheme)
+  (begin (define-syntax when
+	   (syntax-rules ()
+	     ((_ test body ...)
+	      (if test
+		  (begin body ...)))))))
+
 (define-structure httpd-utils
   (export string-split
 	  flatten-iolist
@@ -53,6 +62,7 @@
   (open byte-vectors)
   (open encodings)
 
+  (open when)
   (open httpd-utils)
 
   (files "httpd.scm"))
@@ -84,6 +94,7 @@
 
   (open pp)
 
+  (open when)
   (open httpd)
   (open httpd-utils)
 

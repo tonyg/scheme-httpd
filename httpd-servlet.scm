@@ -83,8 +83,8 @@
   (make-publication-pattern* (parse-publication-pattern-template template)))
 
 (define (publish-pattern! index pattern handler)
-  (if (not (publication-pattern? pattern))
-      (error `("publish-pattern! expects a publication-pattern" ,pattern)))
+  (when (not (publication-pattern? pattern))
+    (error `("publish-pattern! expects a publication-pattern" ,pattern)))
   (set-servlet-index-patterns! index
 			       (cons (cons pattern handler)
 				     (servlet-index-patterns index))))

@@ -146,8 +146,8 @@
   (let* ((req (read-http-request i))
 	 (content-length (and-let* ((s (assq 'content-length (http-request-headers req))))
 			   (string->number (cadr s)))))
-    (if content-length
-	(set-http-request-body! req (read-body i content-length)))
+    (when content-length
+      (set-http-request-body! req (read-body i content-length)))
     (let ((reply (handler req)))
       (write-status-line o
 			 (or (http-request-http-version req) "HTTP/1.0")
@@ -185,6 +185,14 @@
     (close-input-port i)
     (close-output-port o)))
 
+(define (on-exception handler thunk)
+  (call-with-current-continuation
+   (lambda (escape)
+     (with-exception-handler
+      (lambda (exn)
+	(escape (handler exn)))
+      thunk))))
+
 (define (httpd port-number handler)
   (let ((server-socket (open-socket port-number)))
     (define (accept-loop)
@@ -192,15 +200,18 @@
 	(lambda (in out)
 	  (spawn
 	   (lambda ()
-	     (guard (exn
-		     (else ((dump-error-and (complain-and-close exn in out)) exn)))
-		    (do-connection in out handler))))
+	     (on-exception
+	      (lambda (exn)
+		((dump-error-and (complain-and-close exn in out)) exn))
+	      (lambda ()
+		(do-connection in out handler)))))
 	  (accept-loop))))
     (spawn
      (lambda ()
-       (guard (exn
-	       (else ((dump-error-and (lambda () (close-socket server-socket))) exn)))
-	      (accept-loop))))
+       (on-exception
+	(lambda (exn)
+	  ((dump-error-and (lambda () (close-socket server-socket))) exn))
+	accept-loop)))
     (cons 'httpd server-socket)))
 
 (define (stop-httpd r)
