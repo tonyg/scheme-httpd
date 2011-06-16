@@ -10,8 +10,10 @@
 (define-structure httpd-utils
   (export string-split
 	  flatten-iolist
-	  interleave-element)
+	  interleave-element
+	  unquote-http-url)
   (open scheme)
+  (open srfi-2)
   (open srfi-13)
   (open srfi-23)
   (open encodings)

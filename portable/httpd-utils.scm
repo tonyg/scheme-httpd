@@ -75,3 +75,28 @@
 	(if (null? (cdr xs))
 	    xs
 	    (cons (car xs) (cons element (loop (cdr xs))))))))
+
+(define unquote-http-url
+  (let ()
+    (define (hex-char->digit c)
+      (cond
+       ((char-numeric? c) (- (char->integer c) (char->integer #\0)))
+       ((char-lower-case? c) (+ 10 (- (char->integer c) (char->integer #\a))))
+       ((char-upper-case? c) (+ 10 (- (char->integer c) (char->integer #\A))))
+       (else #f)))
+    (define (escaped-char->char ch1 ch2)
+      (and-let* ((v1 (hex-char->digit ch1))
+		 (v2 (hex-char->digit ch2)))
+	(integer->char (+ (* v1 16) v2))))
+    (lambda (str)
+      (list->string
+       (let loop ((chars (string->list str)))
+	 (cond
+	  ((null? chars) '())
+	  ((and (eqv? (car chars) #\%)
+		(pair? (cdr chars))
+		(pair? (cddr chars)))
+	   (cons (escaped-char->char (cadr chars) (caddr chars))
+		 (loop (cdddr chars))))
+	  (else
+	   (cons (car chars) (loop (cdr chars))))))))))

@@ -108,9 +108,10 @@
       (if (zero? (string-length line))
 	  (reverse acc)
 	  (parse-headers (cons (split-header-by '(#\:) line) acc)))))
-  (apply (lambda (method-str path . maybe-http-version)
+  (apply (lambda (method-str quoted-path . maybe-http-version)
 	   (let ((method (string->symbol (string-downcase method-str)))
-		 (headers (parse-headers '())))
+		 (headers (parse-headers '()))
+		 (path (unquote-http-url quoted-path)))
 	     (make-http-request headers
 				method
 				path
