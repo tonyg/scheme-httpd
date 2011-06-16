@@ -8,7 +8,8 @@
 			(xxexpr->string
 			 `((html (head (title ,title))
 				 (body (h1 "Test")
-				       ,@body-parts)))))))
+				       ,@body-parts
+				       (p "Return to the "(a ((href "/")) "main page")"."))))))))
 
 (publish-pattern index
     (make-publication-pattern '())
@@ -25,8 +26,7 @@
 		    (method "POST"))
 		   (input ((name "foo") (value "bar"))) (br)
 		   (input ((name "zot") (value "quux"))) (br)
-		   (input ((type "submit") (value "Do it"))))
-	     (p "Go " (a ((href "/")) "home") "."))))
+		   (input ((type "submit") (value "Do it")))))))
 
 (publish-pattern index
     (make-publication-pattern '(post-target))
@@ -36,8 +36,7 @@
 	     (ul
 	      ,@(map (lambda (piece)
 		       `(li ,(symbol->string (car piece))" = ",@(cdr piece)))
-		     (parse-query (http-request-body-string (current-request)))))
-	     (p "Go " (a ((href "/")) "home") "."))))
+		     (parse-query (http-request-body-string (current-request))))))))
 
 (publish-pattern index
     (make-publication-pattern '(stop))
