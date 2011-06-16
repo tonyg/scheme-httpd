@@ -48,12 +48,17 @@
   (respond "Stopped"
 	   `((p "It's stopped now."))))
 
-(define (sum-page req numbers)
+(define (sum xs) (if (null? xs) 0 (+ (car xs) (sum (cdr xs)))))
+
+(define (redirecting-sum-page req numbers)
   (make-redirect-response
-   (page-url counter (let sum ((numbers numbers))
-		       (if (null? numbers)
-			   0
-			   (+ (car numbers) (sum (cdr numbers))))))))
+   (page-url counter (sum numbers))))
+
+(define (sum-page req numbers)
+  (respond "Huh"
+	   `((p "Turns out to be ",(sum numbers)"!")
+	     (a ((href ,(page-url redirecting-sum-page numbers)))
+		"As a counter."))))
 
 (define dispatch-request '*)
 (define page-url '*)
@@ -64,7 +69,8 @@
 		(("post-target") post-target-page)
 		(("stop") stop-page)
 		(("counter" (integer-arg)) counter)
-		(("sum" (number-arg) ... "those" "numbers") sum-page)
+		(("sum" (number-arg) ... "these" "numbers") sum-page)
+		(("sum" (number-arg) ... "those" "numbers") redirecting-sum-page)
 		(else main-page)))
   (lambda (dr du)
     (set! dispatch-request dr)
