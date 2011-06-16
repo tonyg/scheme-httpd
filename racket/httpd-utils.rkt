@@ -1,12 +1,15 @@
 #lang racket
 
+(require srfi/1)
 (require srfi/2)
 (require srfi/13)
 
 (provide string-split
          flatten-iolist
          interleave-element
-	 unquote-http-url)
+	 unquote-http-url
+	 parse-query
+	 split-header-by)
 
 (define string->utf-8 string->bytes/utf-8)
 

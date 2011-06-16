@@ -100,3 +100,28 @@
 		 (loop (cdddr chars))))
 	  (else
 	   (cons (car chars) (loop (cdr chars))))))))))
+
+(define (query-parameter-push alist key value)
+  (call-with-values (lambda () (break (lambda (elt) (eq? (car elt) key)) alist))
+    (lambda (head tail)
+      (if (null? tail)
+	  (if (eq? value #f) ;; ...&param&..., ie. no value
+	      (cons (list key) alist)
+	      (cons (list key value) alist))
+	  (if (eq? value #f)
+	      alist
+	      (cons (cons key (append (cdar tail) (list value))) (append head (cdr tail))))))))
+
+(define (parse-query query)
+  (let ((kvs (string-split query '(#\&))))
+    (fold (lambda (kv acc) (query-parameter-push acc (car kv) (cadr kv)))
+	  '()
+	  (map (lambda (kv) (split-header-by '(#\=) kv)) kvs))))
+
+(define (split-header-by separators line)
+  (apply (lambda (key . maybe-value)
+	   (list (string->symbol (string-downcase (string-trim-both key)))
+		 (if (null? maybe-value)
+		     #f
+		     (string-trim-both (car maybe-value)))))
+	 (string-split line separators 1)))

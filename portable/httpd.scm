@@ -57,23 +57,6 @@
   (server-socket http-daemon-server-socket set-http-daemon-server-socket!)
   (handler http-daemon-handler))
 
-(define (alist-push alist key value)
-  (call-with-values (lambda () (break (lambda (elt) (eq? (car elt) key)) alist))
-    (lambda (head tail)
-      (if (null? tail)
-	  (if (eq? value #f) ;; ...&param&..., ie. no value
-	      (cons (list key) alist)
-	      (cons (list key value) alist))
-	  (if (eq? value #f)
-	      alist
-	      (cons (cons key (append (cdar tail) (list value))) (append head (cdr tail))))))))
-
-(define (parse-query query)
-  (let ((kvs (string-split query '(#\&))))
-    (fold (lambda (kv acc) (alist-push acc (car kv) (cadr kv)))
-	  '()
-	  (map (lambda (kv) (split-header-by '(#\=) kv)) kvs))))
-
 (define (parse-path path)
   (apply (lambda (path-and-params . maybe-query)
 	   (apply (lambda (path . maybe-params)
@@ -86,14 +69,6 @@
 					path-pieces)))
 		  (string-split path-and-params '(#\;) 1)))
 	 (string-split path '(#\?) 1)))
-
-(define (split-header-by separators line)
-  (apply (lambda (key . maybe-value)
-	   (list (string->symbol (string-downcase (string-trim-both key)))
-		 (if (null? maybe-value)
-		     #f
-		     (string-trim-both (car maybe-value)))))
-	 (string-split line separators 1)))
 
 (define (read-http-request i)
   (define (next-line)

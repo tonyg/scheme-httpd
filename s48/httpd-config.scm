@@ -11,8 +11,11 @@
   (export string-split
 	  flatten-iolist
 	  interleave-element
-	  unquote-http-url)
+	  unquote-http-url
+	  parse-query
+	  split-header-by)
   (open scheme)
+  (open srfi-1)
   (open srfi-2)
   (open srfi-13)
   (open srfi-23)
