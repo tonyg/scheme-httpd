@@ -51,7 +51,7 @@ example application at http://localhost:8000/.
 
 ## Copyright and Licence
 
-Copyright (c) 2008, 2011 Tony Garnock-Jones <tonyg@kcbbs.gen.nz>  
+Copyright (c) 2008, 2011 Tony Garnock-Jones <tonygarnockjones@gmail.com>  
 Copyright (c) 2008 LShift Ltd. <query@lshift.net>
 
 Permission is hereby granted, free of charge, to any person obtaining
