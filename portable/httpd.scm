@@ -61,14 +61,18 @@
   (call-with-values (lambda () (break (lambda (elt) (eq? (car elt) key)) alist))
     (lambda (head tail)
       (if (null? tail)
-	  (cons (list key value) alist)
-	  (cons (cons key (append (cdar tail) (list value))) (append head (cdr tail)))))))
+	  (if (eq? value #f) ;; ...&param&..., ie. no value
+	      (cons (list key) alist)
+	      (cons (list key value) alist))
+	  (if (eq? value #f)
+	      alist
+	      (cons (cons key (append (cdar tail) (list value))) (append head (cdr tail))))))))
 
 (define (parse-query query)
   (let ((kvs (string-split query '(#\&))))
-    `(query ,@(fold (lambda (kv acc) (alist-push acc (car kv) (cadr kv)))
-		    '()
-		    (map (lambda (kv) (split-header-by '(#\=) kv)) kvs)))))
+    (fold (lambda (kv acc) (alist-push acc (car kv) (cadr kv)))
+	  '()
+	  (map (lambda (kv) (split-header-by '(#\=) kv)) kvs))))
 
 (define (parse-path path)
   (apply (lambda (path-and-params . maybe-query)
@@ -76,7 +80,7 @@
 		    (let ((path-pieces (string-split path '(#\/)))
 			  (query-string (and (pair? maybe-query) (car maybe-query))))
 		      (make-parsed-path query-string
-					(if query-string (parse-query query-string) '())
+					(if query-string (parse-query query-string) #f)
 					(if (null? maybe-params) #f (car maybe-params))
 					path
 					path-pieces)))
