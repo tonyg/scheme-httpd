@@ -15,7 +15,7 @@
   (open srfi-13)
   (open srfi-23)
   (open encodings)
-  (files "httpd-utils.scm"))
+  (files "../portable/httpd-utils.scm"))
 
 (define-structure httpd
   (export httpd
@@ -65,7 +65,7 @@
   (open when)
   (open httpd-utils)
 
-  (files "httpd.scm"))
+  (files "../portable/httpd.scm"))
 
 (define-structure httpd-servlet
   (export make-httpd-servlet-handler
@@ -98,4 +98,4 @@
   (open httpd)
   (open httpd-utils)
 
-  (files "httpd-servlet.scm"))
+  (files "../portable/httpd-servlet.scm"))

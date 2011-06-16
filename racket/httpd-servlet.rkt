@@ -24,4 +24,4 @@
          publication-pattern-handler
          publish-pattern)
 
-(include "httpd-servlet.scm")
+(include "../portable/httpd-servlet.scm")

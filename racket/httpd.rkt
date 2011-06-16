@@ -58,4 +58,4 @@
 
 (define spawn thread)
 
-(include "httpd.scm")
+(include "../portable/httpd.scm")

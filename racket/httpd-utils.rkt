@@ -8,4 +8,4 @@
 
 (define string->utf-8 string->bytes/utf-8)
 
-(include "httpd-utils.scm")
+(include "../portable/httpd-utils.scm")
