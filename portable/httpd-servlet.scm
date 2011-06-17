@@ -64,17 +64,21 @@
     (let ((pattern (find (lambda (cell) (eq? (cadr cell) proc)) table)))
       (when (not pattern)
 	(error `("Cannot find URL corresponding to procedure" ,proc)))
+      (when (eq? (car pattern) 'else)
+	(error `("Cannot build URL corresponding to fall-through handler" ,proc)))
       (string-concatenate
        (cons "/" (interleave-element "/" (render-pattern (car pattern) bindings)))))))
 
 (define (invoke-handler patterns request pieces)
   (let search ((patterns patterns))
-    (if (null? patterns)
-	#f
-	(let ((bindings (match-pattern (caar patterns) pieces)))
-	  (if bindings
-	      (apply (cadar patterns) request bindings)
-	      (search (cdr patterns)))))))
+    (cond
+     ((null? patterns) #f)
+     ((eq? (caar patterns) 'else) ((cadar patterns) request))
+     (else 
+      (let ((bindings (match-pattern (caar patterns) pieces)))
+	(if bindings
+	    (apply (cadar patterns) request bindings)
+	    (search (cdr patterns))))))))
 
 (define (pattern-starts-with-repeated-piece? pattern)
   (and (pair? (cdr pattern))
