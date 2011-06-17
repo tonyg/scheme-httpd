@@ -62,9 +62,13 @@
 (define flatten-iolist
   (let ()
     (define (flatten xs tail)
-      (if (pair? xs)
-	  (flatten (car xs) (flatten (cdr xs) tail))
-	  (cons xs tail)))
+      (cond
+       ((pair? xs) (flatten (car xs) (flatten (cdr xs) tail)))
+       ((null? xs) tail)
+       ((string? xs) (cons xs tail))
+       (else (let ((o (open-output-string)))
+	       (display xs o)
+	       (cons (get-output-string o) tail)))))
     (lambda (iol)
       (string->utf-8 (string-concatenate (flatten iol '()))))))
 

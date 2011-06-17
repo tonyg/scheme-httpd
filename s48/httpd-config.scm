@@ -17,6 +17,7 @@
   (open scheme)
   (open srfi-1)
   (open srfi-2)
+  (open srfi-6)
   (open srfi-13)
   (open srfi-23)
   (open encodings)
