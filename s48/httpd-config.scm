@@ -53,6 +53,9 @@
 	  make-redirect-response
 	  make-not-found-response
 
+	  httpd-header-line-length-limit
+	  httpd-body-length-limit
+
 	  make-http-response
 	  http-response?
 	  http-response-code
@@ -67,6 +70,7 @@
   (open srfi-13)
   (open srfi-23)
   (open srfi-34)
+  (open srfi-39)
 
   (open sockets)
   (open threads)

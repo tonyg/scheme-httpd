@@ -57,6 +57,9 @@
   (server-socket http-daemon-server-socket set-http-daemon-server-socket!)
   (handler http-daemon-handler))
 
+(define httpd-header-line-length-limit (make-parameter 4096))
+(define httpd-body-length-limit (make-parameter 65536))
+
 (define (http-request-body-string req)
   (utf-8->string (http-request-body req) #f))
 
@@ -75,7 +78,10 @@
 
 (define (read-http-request i)
   (define (next-line)
-    (let loop ((acc '()))
+    (let loop ((acc '())
+	       (limit (httpd-header-line-length-limit)))
+      (when (zero? limit)
+	(error "HTTP request line too long"))
       (let ((ch (read-byte i)))
 	(cond
 	 ((eof-object? ch) (list->string (reverse acc)))
@@ -84,7 +90,7 @@
 	      (error "Invalid line terminator - please supply CRLFs")
 	      (list->string (reverse acc))))
 	 (else
-	  (loop (cons (integer->char ch) acc)))))))
+	  (loop (cons (integer->char ch) acc) (- limit 1)))))))
   (define (parse-headers acc)
     (let ((line (next-line)))
       (if (zero? (string-length line))
@@ -102,7 +108,18 @@
 				#f)))
 	 (string-split (next-line) '(#\space) 2)))
 
-(define (read-body i len)
+(define (send-http-continue! o req)
+  (when (and (equal? (http-request-http-version req) "HTTP/1.1")
+	     (let ((h (assq 'expect (http-request-headers req))))
+	       (and h (member "100-continue" (cdr h)))))
+    (write-response o req
+		    (make-http-response 100 "Continue" '() #f))))
+
+(define (read-body i o req len)
+  (when (> len (httpd-body-length-limit))
+    ;; TODO: body streaming. Annoying without object-oriented ports.
+    (error "HTTP body too large"))
+  (send-http-continue! o req)
   (let ((v (make-byte-vector len 0)))
     (if (not (= (read-block v 0 len i) len))
 	'short-body
@@ -140,26 +157,28 @@
     (display value o)
     (write-crlf o)))
 
+(define (write-response o req reply)
+  (write-status-line o
+		     (or (http-request-http-version req) "HTTP/1.0")
+		     (http-response-code reply)
+		     (http-response-message reply))
+  (for-each (lambda (header) (write-header o (car header) (cadr header)))
+	    (http-response-headers reply))
+  (if (http-response-body reply)
+      (let ((body (flatten-iolist (http-response-body reply))))
+	(let ((len (byte-vector-length body)))
+	  (write-header o 'content-length (number->string len))
+	  (write-crlf o)
+	  (write-block body 0 len o)))
+      (write-crlf o)))
+
 (define (do-connection i o handler)
   (let* ((req (read-http-request i))
 	 (content-length (and-let* ((s (assq 'content-length (http-request-headers req))))
 			   (string->number (cadr s)))))
     (when content-length
-      (set-http-request-body! req (read-body i content-length)))
-    (let ((reply (handler req)))
-      (write-status-line o
-			 (or (http-request-http-version req) "HTTP/1.0")
-			 (http-response-code reply)
-			 (http-response-message reply))
-      (for-each (lambda (header) (write-header o (car header) (cadr header)))
-		(http-response-headers reply))
-      (let ((body (flatten-iolist (http-response-body reply))))
-	(if body
-	    (let ((len (byte-vector-length body)))
-	      (write-header o 'content-length (number->string len))
-	      (write-crlf o)
-	      (write-block body 0 len o))
-	    (write-crlf 0))))
+      (set-http-request-body! req (read-body i o req content-length)))
+    (write-response o req (handler req))
     (close-input-port i)
     (close-output-port o)))
 

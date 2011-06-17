@@ -36,6 +36,9 @@
          
          make-redirect-response
 	 make-not-found-response
+
+	 httpd-header-line-length-limit
+	 httpd-body-length-limit
          
          make-http-response
          http-response?
