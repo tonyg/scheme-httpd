@@ -71,7 +71,7 @@
 		(("counter" (integer-arg)) counter)
 		(("sum" (number-arg) ... "these" "numbers") sum-page)
 		(("sum" (number-arg) ... "those" "numbers") redirecting-sum-page)
-		(else main-page)))
+		(else (lambda (req) (make-not-found-response)))))
   (lambda (dr du)
     (set! dispatch-request dr)
     (set! page-url du)))
