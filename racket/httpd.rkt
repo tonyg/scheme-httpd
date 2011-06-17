@@ -35,6 +35,7 @@
          parsed-path-pieces
          
          make-redirect-response
+	 make-not-found-response
          
          make-http-response
          http-response?

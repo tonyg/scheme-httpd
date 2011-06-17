@@ -112,6 +112,14 @@
   (make-http-response 307 "Temporary Redirect" `(("Location" ,uri))
 		      (list "<a href=\""uri"\">"uri"</a>")))
 
+(define (make-not-found-response)
+  (make-http-response 404 "Not Found" '((content-type "text/html"))
+		      (list "<html><head><title>404 Not Found</title></head>"
+			    "<body>"
+			    "<h1>Not Found</h1>"
+			    "<p>The requested URL was not found on this server.</p>"
+			    "</body></html>")))
+
 (define write-crlf
   (lambda (o)
     (display "\r\n" o)))

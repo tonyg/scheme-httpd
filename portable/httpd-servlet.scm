@@ -55,14 +55,7 @@
 		    0)
       (newline)
       (let ((response (or (invoke-handler table req pieces)
-			  (make-http-response 404 "Not Found" '((content-type "text/html"))
-					      (list
-					       "<html><head>"
-					       "<title>Page Not Found</title>"
-					       "</head><body>"
-					       "<h1>404: Page Not Found</h1>"
-					       "<p>We can't find that page.</p>"
-					       "</body></html>")))))
+			  (make-not-found-response))))
 	;;(write (http-body->string (http-response-body response)))(newline)
 	response))))
 
