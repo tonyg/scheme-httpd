@@ -89,10 +89,12 @@
 	     (pattern pattern)
 	     (pieces pieces))
     (cond
+     ((and (pair? pattern)
+	   (equal? (car pattern) ""))
+      ;; skip empty pieces, for compatibility (?) with racket
+      (loop bindings (cdr pattern) pieces))
      ((and (null? pattern) (null? pieces)) (reverse bindings))
      ((or  (null? pattern) (null? pieces)) #f)
-     ((equal? (car pattern) "") ;; skip empty pieces, for compatibility (?) with racket
-      (loop bindings (cdr pattern) pieces))
      ((pattern-starts-with-repeated-piece? pattern)
       (let accumulate-list ((vals '()) (pieces pieces))
 	(match1 vals (car pattern) (car pieces)
